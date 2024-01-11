@@ -1,0 +1,43 @@
+version: '3'
+
+services:
+  db:
+    container_name: mysql
+    image: mysql:latest
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./mysql/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql
+    environment:
+      MYSQL_DATABASE: db
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+
+  app:
+    container_name: app
+    build: ./app
+    volumes:
+      - ./app:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WAIT_HOSTS: db:3306
+    restart: always
+
+  nginx:
+    container_name: nginx
+    build: ./nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+    restart: always
